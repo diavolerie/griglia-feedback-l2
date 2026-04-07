@@ -588,15 +588,15 @@ function switchTab(name) {
 // ── init ───────────────────────────────────────────────────────────────────
 addRows(8);
 renderSessions();
-
-window.addEventListener('online', ()=>syncNow(true));
-document.addEventListener('visibilitychange', ()=>{ if (!document.hidden && navigator.onLine) syncNow(true); });
 </script>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
-window.addEventListener('online', ()=>syncNow(true));
-document.addEventListener('visibilitychange', ()=>{ if (!document.hidden && navigator.onLine) syncNow(true); });
+
+<script>
+window.SUPABASE_URL = 'https://nvbdmnjxytblemhenfnm.supabase.co'; // SOSTITUISCI CON LA TUA
+window.SUPABASE_ANON_KEY = 'sb_publishable_zxHSTopn4bb17BDhBwEi3g_v_HYPI97'; // SOSTITUISCI CON LA TUA
+console.log('Configurazione caricata:', window.SUPABASE_URL);
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const SUPABASE_URL = 'https://nvbdmnjxytblemhenfnm.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_zxHSTopn4bb17BDhBwEi3g_v_HYPI97';
@@ -609,7 +609,7 @@ function qsa(sel){ return Array.from(document.querySelectorAll(sel)); }
 function uid(){ return crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2); }
 
 async function ensureSupabase(){
-  if (!SUPABASE_URL || SUPABASE_URL.includes('https://nvbdmnjxytblemhenfnm.supabase.co') || !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.includes('sb_publishable_zxHSTopn4bb17BDhBwEi3g_v_HYPI97')) {
+  if ((const SUPABASE_URL = window.SUPABASE_URL || \1) || SUPABASE_URL.includes('https://nvbdmnjxytblemhenfnm.supabase.co') || (const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || \1) || SUPABASE_ANON_KEY.includes('sb_publishable_zxHSTopn4bb17BDhBwEi3g_v_HYPI97')) {
     return false;
   }
   if (!supabase) {
@@ -778,9 +778,6 @@ function addSupabaseControls(){
 window.addEventListener('DOMContentLoaded', async () => {
   addSupabaseControls();
 });
-
-window.addEventListener('online', ()=>syncNow(true));
-document.addEventListener('visibilitychange', ()=>{ if (!document.hidden && navigator.onLine) syncNow(true); });
 </script>
 
 
@@ -993,9 +990,6 @@ document.addEventListener('visibilitychange', ()=>{ if (!document.hidden && navi
     document.getElementById('archiveModal').addEventListener('click', (e)=>{ if(e.target.id==='archiveModal') closeArchive(); });
   });
 })();
-
-window.addEventListener('online', ()=>syncNow(true));
-document.addEventListener('visibilitychange', ()=>{ if (!document.hidden && navigator.onLine) syncNow(true); });
 </script>
 
 
@@ -1028,7 +1022,7 @@ document.addEventListener('visibilitychange', ()=>{ if (!document.hidden && navi
 
   <section id="authPage" class="v3page active v3card">
     <h2>Accesso sincronizzato</h2>
-    <p class="small">Usa lo stesso account su PC e telefono per vedere le stesse sessioni. Anche offline puoi continuare a lavorare: le sessioni restano salvate in locale e puoi sincronizzarle appena torni online.</p>
+    <p class="small">Usa lo stesso account su PC e telefono per vedere le stesse sessioni.</p>
     <div class="notice">Per usare magic link o email/password devi configurare in Supabase le URL di redirect del sito pubblicato.[web:207][web:142]</div>
     <div id="authBox">
       <input type="email" id="authEmail" placeholder="La tua email">
@@ -1117,7 +1111,7 @@ document.addEventListener('visibilitychange', ()=>{ if (!document.hidden && navi
   showPage('authPage');
 
   async function ensureSupabaseClient(){
-    if (!window.supabase || !SUPABASE_URL || SUPABASE_URL.includes('https://nvbdmnjxytblemhenfnm.supabase.co') || !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.includes('sb_publishable_zxHSTopn4bb17BDhBwEi3g_v_HYPI97')) {
+    if (!window.supabase || (const SUPABASE_URL = window.SUPABASE_URL || \1) || SUPABASE_URL.includes('https://nvbdmnjxytblemhenfnm.supabase.co') || (const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || \1) || SUPABASE_ANON_KEY.includes('sb_publishable_zxHSTopn4bb17BDhBwEi3g_v_HYPI97')) {
       alert('Inserisci prima SUPABASE_URL e la publishable/anon key nel file HTML.');
       return null;
     }
@@ -1274,102 +1268,6 @@ document.addEventListener('visibilitychange', ()=>{ if (!document.hidden && navi
     await loadTimetable().catch(()=>{});
   });
 })();
-
-const LOCAL_SESSIONS_KEY = 'grigliaHybridLocalSessions';
-const LOCAL_SCHEDULE_KEY = 'grigliaHybridLocalSchedule';
-const LOCAL_PENDING_KEY = 'grigliaHybridPendingSync';
-
-function readLocalSessions(){
-  try { return JSON.parse(localStorage.getItem(LOCAL_SESSIONS_KEY) || '[]'); } catch(e){ return []; }
-}
-function writeLocalSessions(v){
-  localStorage.setItem(LOCAL_SESSIONS_KEY, JSON.stringify(v));
-}
-function readPending(){
-  try { return JSON.parse(localStorage.getItem(LOCAL_PENDING_KEY) || '[]'); } catch(e){ return []; }
-}
-function writePending(v){
-  localStorage.setItem(LOCAL_PENDING_KEY, JSON.stringify(v));
-}
-function upsertLocalSession(session){
-  const sessions = readLocalSessions();
-  const i = sessions.findIndex(x => x.id === session.id);
-  if (i >= 0) sessions[i] = session; else sessions.push(session);
-  writeLocalSessions(sessions);
-}
-function queuePending(session){
-  const pending = readPending();
-  const i = pending.findIndex(x => x.id === session.id);
-  if (i >= 0) pending[i] = session; else pending.push(session);
-  writePending(pending);
-}
-function markSynced(id){
-  const pending = readPending().filter(x => x.id !== id);
-  writePending(pending);
-}
-function mergeSessionsPreferNewest(a, b){
-  const map = new Map();
-  [...a, ...b].forEach(s => {
-    const prev = map.get(s.id);
-    if (!prev) { map.set(s.id, s); return; }
-    const pa = new Date(prev.updated_at || prev.created_at || 0).getTime();
-    const sa = new Date(s.updated_at || s.created_at || 0).getTime();
-    map.set(s.id, sa >= pa ? s : prev);
-  });
-  return Array.from(map.values()).sort((x,y)=> new Date(y.updated_at || y.created_at || 0) - new Date(x.updated_at || x.created_at || 0));
-}
-async function syncNow(silent=false){
-  upsertCurrentDraftLocal();
-  const client = await ensureSupabaseClient();
-  if (!client){ if(!silent) alert('Config Supabase mancante. I dati restano comunque salvati offline.'); return; }
-  if (!navigator.onLine){ if(!silent) alert('Sei offline: i dati sono salvati in locale e verranno sincronizzati quando torni online.'); return; }
-  const { data: { session } } = await client.auth.getSession();
-  if (!session?.user){ if(!silent) alert('Devi essere loggato per sincronizzare con Supabase. Intanto i dati restano salvati offline.'); return; }
-  const userId = session.user.id;
-  const pending = readPending();
-  for (const item of pending){
-    const payload = { user_id: userId, session_id: item.id, title: item.title || '', session_date: item.header?.data || null, data: item };
-    const { error } = await client.from('feedback_sessions').upsert(payload, { onConflict: 'user_id,session_id' });
-    if (!error) markSynced(item.id);
-  }
-  const { data, error } = await client.from('feedback_sessions').select('*').eq('user_id', userId).order('created_at', { ascending: false });
-  if (!error && Array.isArray(data)){
-    const remote = data.map(r => r.data).filter(Boolean);
-    const merged = mergeSessionsPreferNewest(readLocalSessions(), remote);
-    writeLocalSessions(merged);
-    renderSessions();
-  }
-  if(!silent) alert('Sincronizzazione completata.');
-}
-function getCurrentSessionObject(){
-  const hdr = getHeader();
-  return {
-    id: window.currentSessionId || ('sess_' + Date.now()),
-    title: `${hdr.classe || 'classe'} - sessione ${hdr.sessione || '1'} - ${hdr.data || ''}`,
-    header: hdr,
-    rows: JSON.parse(JSON.stringify(rows || [])),
-    updated_at: new Date().toISOString(),
-    created_at: window.currentSessionCreatedAt || new Date().toISOString()
-  };
-}
-function upsertCurrentDraftLocal(){
-  const obj = getCurrentSessionObject();
-  window.currentSessionId = obj.id;
-  window.currentSessionCreatedAt = obj.created_at;
-  upsertLocalSession(obj);
-  queuePending(obj);
-}
-function downloadLocalBackup(){
-  const blob = new Blob([JSON.stringify({ sessions: readLocalSessions(), pending: readPending() }, null, 2)], {type:'application/json;charset=utf-8'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'griglia-backup-locale.json';
-  a.click();
-}
-
-
-window.addEventListener('online', ()=>syncNow(true));
-document.addEventListener('visibilitychange', ()=>{ if (!document.hidden && navigator.onLine) syncNow(true); });
 </script>
 
 </body>
