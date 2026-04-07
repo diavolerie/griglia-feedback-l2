@@ -986,5 +986,283 @@ window.addEventListener('DOMContentLoaded', async () => {
 })();
 </script>
 
+
+<style>
+#appShell{display:grid;gap:16px;margin:18px 0}
+#topNavV3{display:flex;gap:8px;flex-wrap:wrap;padding:12px 14px;border:1px solid #ddd5c9;border-radius:14px;background:#fbfaf7}
+#topNavV3 button{padding:10px 14px;border-radius:10px;border:1px solid #d1cabd;background:#fff;font-weight:600}
+.v3page{display:none}
+.v3page.active{display:block}
+.v3card{padding:16px;border:1px solid #ddd5c9;border-radius:16px;background:#fff;box-shadow:0 4px 16px rgba(0,0,0,.04)}
+#authBox{display:grid;gap:12px;max-width:560px}
+#authBox input,#lessonBuilder input,#lessonBuilder select,#schedulePage input,#schedulePage select{padding:10px 12px;border:1px solid #d7d2c9;border-radius:10px}
+#lessonList,.sched-list{display:grid;gap:10px;margin-top:14px}
+.lesson-item,.sched-item{padding:12px;border:1px solid #e2ddd3;border-radius:12px;background:#fcfbf8}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.tableWrap{overflow:auto}
+.timetable{width:100%;border-collapse:collapse;margin-top:12px}
+.timetable th,.timetable td{border:1px solid #ddd5c9;padding:8px;min-width:120px;text-align:center;vertical-align:top}
+.timetable td input{width:100%;margin:2px 0}
+.small{font-size:13px;color:#6e685f}
+.notice{padding:10px 12px;border-radius:10px;background:#f4f8fb;border:1px solid #d6e6f3;color:#35556d}
+</style>
+<div id="appShell">
+  <div id="topNavV3">
+    <button type="button" data-page="authPage">Accesso</button>
+    <button type="button" data-page="formPage">Griglia</button>
+    <button type="button" data-page="calendarPage">Calendario lezioni</button>
+    <button type="button" data-page="schedulePage">Orario scolastico</button>
+  </div>
+
+  <section id="authPage" class="v3page active v3card">
+    <h2>Accesso sincronizzato</h2>
+    <p class="small">Usa lo stesso account su PC e telefono per vedere le stesse sessioni.</p>
+    <div class="notice">Per usare magic link o email/password devi configurare in Supabase le URL di redirect del sito pubblicato.[web:207][web:142]</div>
+    <div id="authBox">
+      <input type="email" id="authEmail" placeholder="La tua email">
+      <input type="password" id="authPassword" placeholder="Password">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" id="signUpBtn">Registrati</button>
+        <button type="button" id="signInBtn">Accedi</button>
+        <button type="button" id="magicBtn">Invia magic link</button>
+        <button type="button" id="signOutBtn">Esci</button>
+      </div>
+      <div id="authStatus" class="small"></div>
+    </div>
+  </section>
+
+  <section id="formPage" class="v3page">
+  </section>
+
+  <section id="calendarPage" class="v3page v3card">
+    <h2>Calendario lezioni</h2>
+    <p class="small">Qui puoi memorizzare le lezioni già fisse e aggiungere manualmente supplenze o altre attività.</p>
+    <div id="lessonBuilder" class="grid2">
+      <input type="date" id="lessonDate">
+      <input type="time" id="lessonStart">
+      <input type="time" id="lessonEnd">
+      <input type="text" id="lessonClass" placeholder="Classe / sezione">
+      <input type="text" id="lessonSubject" placeholder="Materia / nota">
+      <select id="lessonType">
+        <option value="Lezione">Lezione</option>
+        <option value="Supplenza">Supplenza</option>
+        <option value="Riunione">Riunione</option>
+        <option value="Altro">Altro</option>
+      </select>
+      <button type="button" id="addLessonBtn">Aggiungi al calendario</button>
+    </div>
+    <div id="lessonList"></div>
+  </section>
+
+  <section id="schedulePage" class="v3page v3card">
+    <h2>Orario scolastico settimanale</h2>
+    <p class="small">Compila il tuo orario fisso dalla 1ª alla 5ª ora con le sezioni. Poi lo ritrovi sempre salvato nel tuo account.</p>
+    <div class="tableWrap">
+      <table class="timetable" id="timetable">
+        <thead>
+          <tr>
+            <th>Ora</th>
+            <th>Lunedì</th>
+            <th>Martedì</th>
+            <th>Mercoledì</th>
+            <th>Giovedì</th>
+            <th>Venerdì</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+      <button type="button" id="saveTimetableBtn">Salva orario</button>
+      <button type="button" id="loadTimetableBtn">Carica orario</button>
+    </div>
+    <div class="small">Ogni cella ha due righe: materia/attività e sezione/classe.</div>
+  </section>
+</div>
+<script>
+(function(){
+  const publishedUrl = window.location.origin + window.location.pathname;
+  let lessonsCache = [];
+
+  function showPage(id){
+    document.querySelectorAll('.v3page').forEach(p=>p.classList.remove('active'));
+    const el = document.getElementById(id);
+    if (el) el.classList.add('active');
+  }
+  document.addEventListener('click', e=>{
+    const b = e.target.closest('#topNavV3 [data-page]');
+    if (b) showPage(b.dataset.page);
+  });
+
+  // move existing form content into formPage
+  const formPage = document.getElementById('formPage');
+  const existing = [];
+  Array.from(document.body.children).forEach(el=>{
+    if (!['appShell','archiveModal'].includes(el.id) && !el.closest?.('#appShell')) existing.push(el);
+  });
+  existing.forEach(el=>{ if (el.id !== 'appShell') formPage.appendChild(el); });
+  formPage.classList.add('active');
+  showPage('authPage');
+
+  async function ensureSupabaseClient(){
+    if (!window.supabase || !SUPABASE_URL || SUPABASE_URL.includes('INCOLLA_QUI') || !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.includes('INCOLLA_QUI')) {
+      alert('Inserisci prima SUPABASE_URL e la publishable/anon key nel file HTML.');
+      return null;
+    }
+    if (!supabase) supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    return supabase;
+  }
+
+  async function refreshAuthStatus(){
+    const client = await ensureSupabaseClient();
+    if (!client) return;
+    const { data: { session } } = await client.auth.getSession();
+    currentUser = session?.user || null;
+    document.getElementById('authStatus').textContent = currentUser ? `Accesso attivo: ${currentUser.email || currentUser.id}` : 'Nessun accesso attivo';
+  }
+
+  async function signUpEmail(){
+    const client = await ensureSupabaseClient(); if(!client) return;
+    const email = document.getElementById('authEmail').value.trim();
+    const password = document.getElementById('authPassword').value;
+    const { error } = await client.auth.signUp({ email, password, options: { emailRedirectTo: publishedUrl } });
+    alert(error ? error.message : 'Registrazione inviata. Controlla la mail se Supabase richiede conferma.');
+    refreshAuthStatus();
+  }
+
+  async function signInEmail(){
+    const client = await ensureSupabaseClient(); if(!client) return;
+    const email = document.getElementById('authEmail').value.trim();
+    const password = document.getElementById('authPassword').value;
+    const { error } = await client.auth.signInWithPassword({ email, password });
+    alert(error ? error.message : 'Accesso effettuato.');
+    refreshAuthStatus();
+  }
+
+  async function sendMagicLink(){
+    const client = await ensureSupabaseClient(); if(!client) return;
+    const email = document.getElementById('authEmail').value.trim();
+    const { error } = await client.auth.signInWithOtp({ email, options: { emailRedirectTo: publishedUrl } });
+    alert(error ? error.message : 'Magic link inviato alla tua email.');
+  }
+
+  async function signOutUser(){
+    const client = await ensureSupabaseClient(); if(!client) return;
+    await client.auth.signOut();
+    currentUser = null;
+    refreshAuthStatus();
+  }
+
+  // Override old auth helper
+  window.signInAnonymouslyIfNeeded = async function(){
+    const client = await ensureSupabaseClient();
+    if (!client) return null;
+    const { data: { session } } = await client.auth.getSession();
+    currentUser = session?.user || null;
+    if (!currentUser) {
+      alert('Devi prima accedere nella scheda Accesso con la stessa email su tutti i dispositivi.');
+      showPage('authPage');
+      return null;
+    }
+    return currentUser;
+  }
+
+  async function upsertProfileTable(){
+    const client = await ensureSupabaseClient(); if(!client) return;
+    const user = await window.signInAnonymouslyIfNeeded(); if(!user) return;
+    return {client, user};
+  }
+
+  async function saveLessons(){
+    const ctx = await upsertProfileTable(); if(!ctx) return;
+    const { client, user } = ctx;
+    await client.from('teacher_calendars').upsert({ owner_id: user.id, lessons: lessonsCache, updated_at: new Date().toISOString() }, { onConflict: 'owner_id' });
+    alert('Calendario salvato.');
+  }
+
+  async function loadLessons(){
+    const ctx = await upsertProfileTable(); if(!ctx) return;
+    const { client, user } = ctx;
+    const { data } = await client.from('teacher_calendars').select('*').eq('owner_id', user.id).maybeSingle();
+    lessonsCache = data?.lessons || [];
+    renderLessons();
+  }
+
+  function renderLessons(){
+    const box = document.getElementById('lessonList');
+    if (!lessonsCache.length) { box.innerHTML = '<div class="lesson-item">Nessuna lezione salvata.</div>'; return; }
+    box.innerHTML = lessonsCache.map((l, i)=>`<div class="lesson-item"><strong>${l.date || ''}</strong> · ${l.start || ''} - ${l.end || ''} · ${l.className || ''}<br>${l.subject || ''} <em>(${l.type || ''})</em><div style="margin-top:8px"><button type="button" data-del-lesson="${i}">Elimina</button></div></div>`).join('');
+  }
+
+  async function addLesson(){
+    lessonsCache.unshift({
+      date: document.getElementById('lessonDate').value,
+      start: document.getElementById('lessonStart').value,
+      end: document.getElementById('lessonEnd').value,
+      className: document.getElementById('lessonClass').value,
+      subject: document.getElementById('lessonSubject').value,
+      type: document.getElementById('lessonType').value
+    });
+    renderLessons();
+    await saveLessons();
+  }
+
+  function buildTimetable(){
+    const body = document.querySelector('#timetable tbody');
+    if (body.children.length) return;
+    const days = ['lun','mar','mer','gio','ven'];
+    for(let hour=1; hour<=5; hour++){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<th>${hour}ª ora</th>` + days.map(d=>`<td><input placeholder="Materia" data-tt="${d}_${hour}_subj"><input placeholder="Sezione" data-tt="${d}_${hour}_cls"></td>`).join('');
+      body.appendChild(tr);
+    }
+  }
+
+  function collectTimetable(){
+    const data = {};
+    document.querySelectorAll('[data-tt]').forEach(el=>data[el.dataset.tt]=el.value);
+    return data;
+  }
+  function applyTimetable(data){
+    document.querySelectorAll('[data-tt]').forEach(el=>{ el.value = data?.[el.dataset.tt] || ''; });
+  }
+
+  async function saveTimetable(){
+    const ctx = await upsertProfileTable(); if(!ctx) return;
+    const { client, user } = ctx;
+    await client.from('teacher_timetables').upsert({ owner_id: user.id, timetable_data: collectTimetable(), updated_at: new Date().toISOString() }, { onConflict: 'owner_id' });
+    alert('Orario scolastico salvato.');
+  }
+
+  async function loadTimetable(){
+    const ctx = await upsertProfileTable(); if(!ctx) return;
+    const { client, user } = ctx;
+    const { data } = await client.from('teacher_timetables').select('*').eq('owner_id', user.id).maybeSingle();
+    applyTimetable(data?.timetable_data || {});
+  }
+
+  document.addEventListener('click', async e=>{
+    if (e.target.id==='signUpBtn') await signUpEmail();
+    if (e.target.id==='signInBtn') await signInEmail();
+    if (e.target.id==='magicBtn') await sendMagicLink();
+    if (e.target.id==='signOutBtn') await signOutUser();
+    if (e.target.id==='addLessonBtn') await addLesson();
+    if (e.target.id==='saveTimetableBtn') await saveTimetable();
+    if (e.target.id==='loadTimetableBtn') await loadTimetable();
+    const del = e.target.closest('[data-del-lesson]');
+    if (del) { lessonsCache.splice(Number(del.dataset.delLesson),1); renderLessons(); await saveLessons(); }
+  });
+
+  window.addEventListener('DOMContentLoaded', async ()=>{
+    buildTimetable();
+    await refreshAuthStatus();
+    const client = await ensureSupabaseClient();
+    if (client) client.auth.onAuthStateChange(()=>refreshAuthStatus());
+    await loadLessons().catch(()=>{});
+    await loadTimetable().catch(()=>{});
+  });
+})();
+</script>
+
 </body>
 </html>
