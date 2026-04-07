@@ -1105,7 +1105,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   showPage('authPage');
 
   async function ensureSupabaseClient(){
-    if (!window.supabase || !SUPABASE_URL || SUPABASE_URL.includes('INCOLLA_QUI') || !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.includes('INCOLLA_QUI')) {
+    if (!window.supabase || !SUPABASE_URL || SUPABASE_URL.includes('https://nvbdmnjxytblemhenfnm.supabase.co') || !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.includes('sb_publishable_zxHSTopn4bb17BDhBwEi3g_v_HYPI97')) {
       alert('Inserisci prima SUPABASE_URL e la publishable/anon key nel file HTML.');
       return null;
     }
